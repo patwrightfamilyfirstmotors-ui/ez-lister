@@ -618,7 +618,7 @@ const TC={
 };
 
 // ── RATE LIMIT ──
-let selFeats=[], curTmpl=1, vInfo={engine:'',drivetrain:'',transmission:''};
+let selFeats=[], curTmpl=1, vInfo={engine:'',drivetrain:'',transmission:''}, vehicleFetched=false;
 
 const RL_KEY='ezlister_rl',RL_MAX=9999,RL_MS=60*60*1000; // TEMP: limit disabled for testing
 function getRLData(){try{const r=localStorage.getItem(RL_KEY);return r?JSON.parse(r):{timestamps:[]}}catch{return{timestamps:[]}}}
@@ -635,10 +635,10 @@ function init(){
   Object.keys(MAKES_MODELS).sort().forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;ms.appendChild(o)});
   const tg=document.getElementById('tmplGrid');
   TEMPLATES.forEach(t=>{const b=document.createElement('button');b.className='tb'+(t.id===1?' active':'');b.textContent=t.name;b.onclick=()=>selectTmpl(t.id,b);tg.appendChild(b)});
-  ys.addEventListener('change',updateFetchBtn);
-  ms.addEventListener('change',()=>{populateModels();updateFetchBtn()});
-  document.getElementById('modelSelect').addEventListener('change',()=>{populateTrims();updateFetchBtn()});
-  document.getElementById('trimSelect').addEventListener('change',updateFetchBtn);
+  ys.addEventListener('change',()=>{vehicleFetched=false;updateFetchBtn()});
+  ms.addEventListener('change',()=>{vehicleFetched=false;populateModels();updateFetchBtn()});
+  document.getElementById('modelSelect').addEventListener('change',()=>{vehicleFetched=false;populateTrims();updateFetchBtn()});
+  document.getElementById('trimSelect').addEventListener('change',()=>{vehicleFetched=false;updateFetchBtn()});
   document.getElementById('vinInput').addEventListener('keydown',e=>{if(e.key==='Enter')decodeVIN()});
 
   // ── DEALER INFO PERSISTENCE ──
@@ -665,7 +665,7 @@ function populateTrims(){
 }
 function updateFetchBtn(){
   const y=document.getElementById('yearSelect').value,ma=document.getElementById('makeSelect').value,mo=document.getElementById('modelSelect').value,{remaining}=getRLStatus();
-  document.getElementById('fetchBtn').disabled=!(y&&ma&&mo)||remaining<=0;
+  document.getElementById('fetchBtn').disabled=!(y&&ma&&mo)||remaining<=0||vehicleFetched;
 }
 function selectTmpl(id,btn){document.querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');curTmpl=id}
 
@@ -698,13 +698,13 @@ async function decodeVIN(){
     for(let o of mods.options){if(o.value.toUpperCase()===modU){mods.value=o.value;mm=true;break}}
     if(!mm)for(let o of mods.options){if(o.value.toUpperCase().includes(modU)||modU.includes(o.value.toUpperCase())){mods.value=o.value;mm=true;break}}
     if(mm)populateTrims();}
-  updateFetchBtn();s.style.color='var(--grn)';s.textContent=`✅ ${year} ${make} ${model}${source==='AI'?' (via AI)':''} — dropdowns filled!`;
+  vehicleFetched=false;updateFetchBtn();s.style.color='var(--grn)';s.textContent=`✅ ${year} ${make} ${model}${source==='AI'?' (via AI)':''} — dropdowns filled!`;
 }
 
 // ── FETCH FEATURES ──
 async function handleFetch(){
   const{remaining}=getRLStatus();if(remaining<=0){updateRLUI();return}
-  recordFetch();updateRLUI();updateFetchBtn();await fetchFeatures();
+  vehicleFetched=true;recordFetch();updateRLUI();updateFetchBtn();await fetchFeatures();
 }
 async function fetchFeatures(){
   const year=document.getElementById('yearSelect').value,make=document.getElementById('makeSelect').value,model=document.getElementById('modelSelect').value,trim=document.getElementById('trimSelect').value||'';
